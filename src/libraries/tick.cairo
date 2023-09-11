@@ -1,7 +1,4 @@
-use orion::numbers::signed_integer::i32::i32;
-use orion::numbers::signed_integer::i64::i64;
-use orion::numbers::signed_integer::i128::i128;
-use orion::numbers::signed_integer::integer_trait::IntegerTrait;
+use orion::numbers::signed_integer::{i32::i32, i64::i64, i128::i128, integer_trait::IntegerTrait};
 
 #[derive(Copy, Drop, Serde, starknet::Store)]
 struct Info {
@@ -39,17 +36,13 @@ trait ITick<TStorage> {
         time: u32
     ) -> i128;
     fn get_fee_growth_inside(
-        ref self: TStorage,
+        self: @TStorage,
         tick_lower: i32,
         tick_upper: i32,
         tick_current: i32,
         fee_growth_global_0X128: u256,
         fee_growth_global_1X128: u256
     ) -> (u256, u256);
-    // TODO: Function used for testing. To be removed in the future
-    fn set_tick(ref self: TStorage, tick: i32, info: Info);
-    // TODO: Function used for testing. To be removed in the future
-    fn get_tick(self: @TStorage, tick: i32) -> Info;
 }
 
 #[starknet::contract]
@@ -62,10 +55,9 @@ mod Tick {
     use serde::Serde;
     use traits::{Into, TryInto};
 
-    use orion::numbers::signed_integer::i32::i32;
-    use orion::numbers::signed_integer::i64::i64;
-    use orion::numbers::signed_integer::i128::i128;
-    use orion::numbers::signed_integer::integer_trait::IntegerTrait;
+    use orion::numbers::signed_integer::{
+        i32::i32, i64::i64, i128::i128, integer_trait::IntegerTrait
+    };
 
     use yas::utils::math_utils::MathUtils::mod_subtraction;
 
@@ -75,7 +67,7 @@ mod Tick {
     }
 
     #[external(v0)]
-    impl Tick of ITick<ContractState> {
+    impl TickImpl of ITick<ContractState> {
         /// @notice Clears tick data
         /// @param self The mapping containing all initialized tick information for initialized ticks
         /// @param tick The tick that will be cleared
@@ -138,7 +130,7 @@ mod Tick {
         /// @return fee_growth_inside_0X128 The all-time fee growth in token0, per unit of liquidity, inside the position's tick boundaries
         /// @return fee_growth_inside_1X128 The all-time fee growth in token1, per unit of liquidity, inside the position's tick boundaries
         fn get_fee_growth_inside(
-            ref self: ContractState,
+            self: @ContractState,
             tick_lower: i32,
             tick_upper: i32,
             tick_current: i32,
@@ -180,24 +172,26 @@ mod Tick {
                 )
             )
         }
+    }
 
+    #[generate_trait]
+    impl InternalImpl of InternalTrait {
+        fn _generate_hashed_tick(self: @ContractState, tick: @i32) -> felt252 {
+            let mut serialized: Array<felt252> = ArrayTrait::new();
+            Serde::<i32>::serialize(tick, ref serialized);
+            poseidon_hash_span(serialized.span())
+        }
+
+        // TODO: Function used for testing. To be removed in the future
         fn set_tick(ref self: ContractState, tick: i32, info: Info) {
             let hashed_tick = self._generate_hashed_tick(@tick);
             self.ticks.write(hashed_tick, info);
         }
 
+        // TODO: Function used for testing. To be removed in the future
         fn get_tick(self: @ContractState, tick: i32) -> Info {
             let hashed_tick = self._generate_hashed_tick(@tick);
             self.ticks.read(hashed_tick)
-        }
-    }
-
-    #[generate_trait]
-    impl InternalFunctions of InternalFunctionsTrait {
-        fn _generate_hashed_tick(self: @ContractState, tick: @i32) -> felt252 {
-            let mut serialized: Array<felt252> = ArrayTrait::new();
-            Serde::<i32>::serialize(tick, ref serialized);
-            poseidon_hash_span(serialized.span())
         }
     }
 }
