@@ -72,7 +72,7 @@ mod Tick {
     }
 
     #[external(v0)]
-    impl Tick of ITick<ContractState> {
+    impl TickImpl of ITick<ContractState> {
         /// @notice Derives max liquidity per tick from given tick spacing
         /// @dev Executed within the pool constructor
         /// @param tick_spacing The amount of required tick separation, realized in multiples of `tick_spacing`
